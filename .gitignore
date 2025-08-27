@@ -1,0 +1,42 @@
+# ESP32 Motor Tester - Git Ignore File
+# Created by: Shyam KJ
+
+# WiFi Configuration (contains sensitive credentials)
+wifi_config.h
+
+# IDE and Build Files
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# Arduino IDE
+*.autosave
+
+# ESP32 Build Artifacts
+build/
+*.bin
+*.elf
+*.map
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Logs
+*.log

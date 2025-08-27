@@ -1,0 +1,20 @@
+/*
+ * WiFi Configuration Template
+ * 
+ * Author: Shyam KJ
+ * 
+ * Instructions:
+ * 1. Copy this file to wifi_config.h
+ * 2. Replace "YOUR_WIFI_SSID" and "YOUR_WIFI_PASSWORD" with your actual credentials
+ * 3. The wifi_config.h file will be ignored by git for security
+ */
+
+#ifndef WIFI_CONFIG_H
+#define WIFI_CONFIG_H
+
+// WiFi Network Credentials
+// Replace these placeholder values with your actual WiFi network settings
+const char* WIFI_SSID = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+
+#endif // WIFI_CONFIG_H

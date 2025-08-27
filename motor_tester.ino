@@ -39,8 +39,8 @@
  * 
  * Installation:
  * 1. Install required libraries: WiFi, WebServer, SPIFFS, ArduinoJson, Preferences
- * 2. Upload SPIFFS data (index.html) using ESP32 Sketch Data Upload tool
- * 3. Configure WiFi credentials in this file
+ * 2. Copy wifi_config.h.template to wifi_config.h and update with your WiFi credentials
+ * 3. Upload SPIFFS data (index.html) using ESP32 Sketch Data Upload tool
  * 4. Upload sketch to ESP32
  * 5. Access web interface via ESP32's IP address
  * 
@@ -85,15 +85,17 @@
 #include <SPIFFS.h>      // Flash file system for web assets
 #include <ArduinoJson.h> // JSON parsing and serialization
 #include <Preferences.h> // Non-volatile storage for configuration
+#include "wifi_config.h" // WiFi credentials (not tracked by git)
 
 // =====================================================================================
 // CONFIGURATION SECTION - Modify these values for your setup
 // =====================================================================================
 
-// WiFi Network Credentials
-// Configure these values to match your local WiFi network
-const char* ssid = "shinjitham";           // WiFi network name (SSID)
-const char* password = "py03.1949";        // WiFi network password
+// WiFi Network Credentials (loaded from wifi_config.h)
+// IMPORTANT: WiFi credentials are now stored in wifi_config.h file
+// This file is excluded from git tracking for security purposes
+const char* ssid = WIFI_SSID;             // WiFi network name from wifi_config.h
+const char* password = WIFI_PASSWORD;     // WiFi password from wifi_config.h
 
 // Web Server Configuration
 WebServer server(80);                      // HTTP server on port 80

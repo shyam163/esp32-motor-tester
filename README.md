@@ -53,14 +53,15 @@ GPIO5 (default) → Signal
    - ArduinoJson library
    - SPIFFS library (built-in)
 
-2. Upload filesystem (SPIFFS):
+2. Configure WiFi credentials:
+   - Copy `wifi_config.h.template` to `wifi_config.h`
+   - Edit `wifi_config.h` with your WiFi network credentials
+   - **Important**: `wifi_config.h` is excluded from git tracking for security
+
+3. Upload filesystem (SPIFFS):
    - Install ESP32 Sketch Data Upload tool
    - Select Tools → ESP32 Sketch Data Upload
    - Upload the data folder contents to SPIFFS
-
-3. Configure WiFi credentials:
-   - Edit `motor_tester.ino`
-   - Change `ssid` and `password` variables
 
 4. Upload sketch to ESP32
 
