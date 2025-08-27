@@ -181,7 +181,6 @@ String getWiFiStatusString(int status) {
     case WL_CONNECTED:       return "Connected";
     case WL_CONNECT_FAILED:  return "Connection Failed";
     case WL_CONNECTION_LOST: return "Connection Lost";
-    case WL_WRONG_PASSWORD:  return "Wrong Password";
     case WL_DISCONNECTED:    return "Disconnected";
     default:                 return "Unknown Status";
   }
