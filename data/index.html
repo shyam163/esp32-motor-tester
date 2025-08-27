@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Motor Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .status-panel {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+        
+        .status-item {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        
+        .status-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        
+        .control-section {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .control-section h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            box-sizing: border-box;
+        }
+        
+        .slider-container {
+            margin: 20px 0;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.3);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .throttle-display {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+        
+        .btn-arm {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+        
+        .btn-disarm {
+            background: linear-gradient(45deg, #f44336, #da190b);
+            color: white;
+        }
+        
+        .btn-save {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .btn-preset {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-preset:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .direction-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .btn-direction {
+            padding: 15px 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+        
+        .btn-direction:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .btn-direction:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background: rgba(128, 128, 128, 0.2);
+            border-color: rgba(128, 128, 128, 0.3);
+        }
+        
+        .btn-direction.active {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border-color: #4CAF50;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        }
+        
+        .btn-brake {
+            background: linear-gradient(45deg, #ff9800, #f57c00) !important;
+            border-color: #ff9800 !important;
+        }
+        
+        .btn-brake:hover:not(:disabled) {
+            box-shadow: 0 0 15px rgba(255, 152, 0, 0.5);
+        }
+        
+        .direction-indicator {
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        .armed {
+            border: 3px solid #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+        }
+        
+        .disarmed {
+            border: 3px solid #f44336;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                padding: 20px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="mainContainer">
+        <h1>🚁 ESP32 Motor Tester</h1>
+        
+        <div class="status-panel">
+            <div class="status-item">
+                <div class="status-label">Status</div>
+                <div class="status-value" id="statusValue">Disarmed</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Protocol</div>
+                <div class="status-value" id="protocolValue">PWM</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Pin</div>
+                <div class="status-value" id="pinValue">5</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Direction</div>
+                <div class="status-value" id="directionValue">Forward</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">IP Address</div>
+                <div class="status-value" id="ipValue">-</div>
+            </div>
+        </div>
+        
+        <div class="control-section">
+            <h3>⚙️ Configuration</h3>
+            <div class="form-group">
+                <label for="protocolSelect">Protocol:</label>
+                <select id="protocolSelect">
+                    <option value="PWM">PWM (1000-2000μs)</option>
+                    <option value="DSHOT150">DShot150 (150kbit/s)</option>
+                    <option value="DSHOT300">DShot300 (300kbit/s)</option>
+                    <option value="DSHOT600">DShot600 (600kbit/s)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="pinSelect">Output Pin:</label>
+                <input type="number" id="pinSelect" min="0" max="39" value="5">
+            </div>
+            
+            <button class="btn btn-save" onclick="saveConfig()">💾 Save Configuration</button>
+        </div>
+        
+        <div class="control-section">
+            <h3>🎛️ Motor Control</h3>
+            
+            <div class="direction-controls" id="directionControls">
+                <button class="btn-direction" id="forwardBtn" onclick="setDirection('FORWARD')" disabled>
+                    ⬆️ Forward
+                </button>
+                <button class="btn-direction btn-brake" id="brakeBtn" onclick="setBrake()" disabled>
+                    ⏹️ Brake
+                </button>
+                <button class="btn-direction" id="reverseBtn" onclick="setDirection('REVERSE')" disabled>
+                    ⬇️ Reverse
+                </button>
+            </div>
+            
+            <div class="direction-indicator" id="directionIndicator">Direction Control: Not Supported</div>
+            
+            <div class="throttle-display" id="throttleDisplay">1000μs</div>
+            
+            <div class="slider-container">
+                <input type="range" id="throttleSlider" class="slider" 
+                       min="1000" max="2000" value="1000" step="1"
+                       oninput="updateThrottle(this.value)">
+            </div>
+            
+            <div class="preset-buttons" id="presetButtons">
+                <button class="btn-preset" onclick="setThrottle(1000)">Min</button>
+                <button class="btn-preset" onclick="setThrottle(1200)">25%</button>
+                <button class="btn-preset" onclick="setThrottle(1500)">50%</button>
+                <button class="btn-preset" onclick="setThrottle(1750)">75%</button>
+                <button class="btn-preset" onclick="setThrottle(2000)">Max</button>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn btn-arm" id="armBtn" onclick="armESC()">🔓 Arm ESC</button>
+                <button class="btn btn-disarm" id="disarmBtn" onclick="disarmESC()">🔒 Disarm ESC</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentProtocol = 'PWM';
+        let isArmed = false;
+        let currentDirection = 'FORWARD';
+        let directionSupported = false;
+        
+        // Update status on page load
+        window.onload = function() {
+            updateStatus();
+            setInterval(updateStatus, 2000); // Update every 2 seconds
+        };
+        
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                document.getElementById('statusValue').textContent = data.armed ? 'Armed' : 'Disarmed';
+                document.getElementById('protocolValue').textContent = data.protocol;
+                document.getElementById('pinValue').textContent = data.pin;
+                document.getElementById('directionValue').textContent = data.direction || 'Forward';
+                document.getElementById('ipValue').textContent = data.ip;
+                
+                currentProtocol = data.protocol;
+                isArmed = data.armed;
+                currentDirection = data.direction || 'FORWARD';
+                directionSupported = data.directionSupported || false;
+                
+                // Update UI based on protocol
+                updateProtocolUI();
+                updateDirectionUI();
+                
+                // Update container visual state
+                const container = document.getElementById('mainContainer');
+                container.className = 'container ' + (isArmed ? 'armed' : 'disarmed');
+                
+                // Update slider value
+                document.getElementById('throttleSlider').value = data.throttle;
+                updateThrottleDisplay(data.throttle);
+                
+                // Update pin selection
+                document.getElementById('pinSelect').value = data.pin;
+                
+            } catch (error) {
+                console.error('Error updating status:', error);
+            }
+        }
+        
+        function updateProtocolUI() {
+            const slider = document.getElementById('throttleSlider');
+            const presets = document.getElementById('presetButtons');
+            
+            document.getElementById('protocolSelect').value = currentProtocol;
+            
+            if (currentProtocol === 'PWM') {
+                slider.min = 1000;
+                slider.max = 2000;
+                slider.step = 1;
+                presets.innerHTML = `
+                    <button class="btn-preset" onclick="setThrottle(1000)">Min</button>
+                    <button class="btn-preset" onclick="setThrottle(1200)">25%</button>
+                    <button class="btn-preset" onclick="setThrottle(1500)">50%</button>
+                    <button class="btn-preset" onclick="setThrottle(1750)">75%</button>
+                    <button class="btn-preset" onclick="setThrottle(2000)">Max</button>
+                `;
+            } else {
+                slider.min = 48;
+                slider.max = 2047;
+                slider.step = 1;
+                presets.innerHTML = `
+                    <button class="btn-preset" onclick="setThrottle(48)">Min</button>
+                    <button class="btn-preset" onclick="setThrottle(548)">25%</button>
+                    <button class="btn-preset" onclick="setThrottle(1048)">50%</button>
+                    <button class="btn-preset" onclick="setThrottle(1548)">75%</button>
+                    <button class="btn-preset" onclick="setThrottle(2047)">Max</button>
+                `;
+            }
+        }
+        
+        function updateThrottleDisplay(value) {
+            const display = document.getElementById('throttleDisplay');
+            if (currentProtocol === 'PWM') {
+                display.textContent = value + 'μs';
+            } else {
+                display.textContent = value + ' (DShot)';
+            }
+        }
+        
+        function updateThrottle(value) {
+            updateThrottleDisplay(value);
+            
+            // Send throttle command
+            fetch('/api/throttle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ value: parseInt(value) })
+            }).catch(error => console.error('Error setting throttle:', error));
+        }
+        
+        function setThrottle(value) {
+            document.getElementById('throttleSlider').value = value;
+            updateThrottle(value);
+        }
+        
+        async function saveConfig() {
+            const protocol = document.getElementById('protocolSelect').value;
+            const pin = parseInt(document.getElementById('pinSelect').value);
+            
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ protocol: protocol, pin: pin })
+                });
+                
+                if (response.ok) {
+                    alert('Configuration saved successfully!');
+                    updateStatus(); // Refresh status
+                } else {
+                    alert('Error saving configuration');
+                }
+            } catch (error) {
+                console.error('Error saving config:', error);
+                alert('Error saving configuration');
+            }
+        }
+        
+        async function armESC() {
+            try {
+                const response = await fetch('/api/arm', { method: 'POST' });
+                if (response.ok) {
+                    updateStatus();
+                } else {
+                    alert('Error arming ESC');
+                }
+            } catch (error) {
+                console.error('Error arming ESC:', error);
+                alert('Error arming ESC');
+            }
+        }
+        
+        async function disarmESC() {
+            try {
+                const response = await fetch('/api/disarm', { method: 'POST' });
+                if (response.ok) {
+                    updateStatus();
+                } else {
+                    alert('Error disarming ESC');
+                }
+            } catch (error) {
+                console.error('Error disarming ESC:', error);
+                alert('Error disarming ESC');
+            }
+        }
+        
+        function updateDirectionUI() {
+            const forwardBtn = document.getElementById('forwardBtn');
+            const reverseBtn = document.getElementById('reverseBtn');
+            const brakeBtn = document.getElementById('brakeBtn');
+            const indicator = document.getElementById('directionIndicator');
+            
+            if (directionSupported) {
+                forwardBtn.disabled = false;
+                reverseBtn.disabled = false;
+                brakeBtn.disabled = !isArmed;
+                
+                // Update active button
+                [forwardBtn, reverseBtn].forEach(btn => btn.classList.remove('active'));
+                if (currentDirection === 'FORWARD') {
+                    forwardBtn.classList.add('active');
+                } else if (currentDirection === 'REVERSE') {
+                    reverseBtn.classList.add('active');
+                }
+                
+                indicator.textContent = `Direction Control: Enabled (${currentDirection})`;
+                indicator.style.background = 'rgba(76, 175, 80, 0.2)';
+            } else {
+                forwardBtn.disabled = true;
+                reverseBtn.disabled = true;
+                brakeBtn.disabled = true;
+                
+                [forwardBtn, reverseBtn].forEach(btn => btn.classList.remove('active'));
+                
+                indicator.textContent = 'Direction Control: Not Supported (PWM Mode)';
+                indicator.style.background = 'rgba(128, 128, 128, 0.2)';
+            }
+        }
+        
+        async function setDirection(direction) {
+            if (!directionSupported) {
+                alert('Direction control is only supported with DShot protocols');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/direction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ direction: direction })
+                });
+                
+                if (response.ok) {
+                    currentDirection = direction;
+                    updateDirectionUI();
+                    setTimeout(updateStatus, 500); // Update status after a brief delay
+                } else {
+                    const errorData = await response.json();
+                    alert('Error setting direction: ' + (errorData.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error setting direction:', error);
+                alert('Error setting direction');
+            }
+        }
+        
+        async function setBrake() {
+            if (!directionSupported) {
+                alert('Braking is only supported with DShot protocols');
+                return;
+            }
+            
+            if (!isArmed) {
+                alert('ESC must be armed to use brake function');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/brake', { method: 'POST' });
+                if (response.ok) {
+                    // Set throttle to 0 and update UI
+                    document.getElementById('throttleSlider').value = directionSupported ? 0 : 1000;
+                    updateThrottle(document.getElementById('throttleSlider').value);
+                    setTimeout(updateStatus, 500);
+                } else {
+                    const errorData = await response.json();
+                    alert('Error applying brake: ' + (errorData.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error applying brake:', error);
+                alert('Error applying brake');
+            }
+        }
+    </script>
+</body>
+</html>
