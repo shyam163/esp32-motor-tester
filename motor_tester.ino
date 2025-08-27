@@ -114,6 +114,12 @@ bool escArmed = false;                 // Safety state: true=armed (motor can ru
 String direction = "FORWARD";          // Motor direction: FORWARD, REVERSE, BRAKE (DShot only)
 bool directionSupported = false;       // Protocol capability flag for bidirectional control
 
+// Debug and Monitoring Variables
+unsigned long lastStatusReport = 0;    // Last time network status was reported
+unsigned long lastWiFiCheck = 0;      // Last time WiFi connection was checked
+const unsigned long STATUS_INTERVAL = 30000;  // Report status every 30 seconds
+const unsigned long WIFI_CHECK_INTERVAL = 5000; // Check WiFi every 5 seconds
+
 // =====================================================================================
 // DSHOT PROTOCOL CONSTANTS - Timing and command definitions
 // =====================================================================================
@@ -154,6 +160,83 @@ const int DSHOT_CMD_LED0_OFF = 26;             // Turn off LED channel 0 (if sup
 const int DSHOT_CMD_LED1_OFF = 27;             // Turn off LED channel 1 (if supported)
 const int DSHOT_CMD_LED2_OFF = 28;             // Turn off LED channel 2 (if supported)
 const int DSHOT_CMD_LED3_OFF = 29;             // Turn off LED channel 3 (if supported)
+
+// =====================================================================================
+// UTILITY FUNCTIONS - Helper functions for debugging and status reporting
+// =====================================================================================
+
+/**
+ * WiFi Status Code Decoder
+ * 
+ * Converts WiFi status codes to human-readable strings for debugging
+ * 
+ * @param status WiFi status code from WiFi.status()
+ * @return String description of the status
+ */
+String getWiFiStatusString(int status) {
+  switch (status) {
+    case WL_IDLE_STATUS:     return "Idle";
+    case WL_NO_SSID_AVAIL:   return "SSID Not Available";
+    case WL_SCAN_COMPLETED:  return "Scan Completed";
+    case WL_CONNECTED:       return "Connected";
+    case WL_CONNECT_FAILED:  return "Connection Failed";
+    case WL_CONNECTION_LOST: return "Connection Lost";
+    case WL_WRONG_PASSWORD:  return "Wrong Password";
+    case WL_DISCONNECTED:    return "Disconnected";
+    default:                 return "Unknown Status";
+  }
+}
+
+/**
+ * System Status Reporter
+ * 
+ * Prints comprehensive system status to serial console including:
+ * - WiFi connection details and signal strength
+ * - Motor control system state
+ * - Memory usage and system health
+ * - Current configuration
+ */
+void printSystemStatus() {
+  Serial.println("\n=== SYSTEM STATUS REPORT ===");
+  Serial.printf("Uptime: %lu seconds\n", millis() / 1000);
+  
+  // WiFi Status
+  Serial.println("--- Network Status ---");
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("✓ WiFi: Connected to %s\n", WiFi.SSID().c_str());
+    Serial.printf("✓ IP: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("✓ Signal: %d dBm", WiFi.RSSI());
+    if (WiFi.RSSI() > -50) Serial.print(" (Excellent)");
+    else if (WiFi.RSSI() > -60) Serial.print(" (Good)");
+    else if (WiFi.RSSI() > -70) Serial.print(" (Fair)");
+    else Serial.print(" (Weak)");
+    Serial.println();
+    Serial.printf("✓ Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+  } else {
+    Serial.printf("✗ WiFi: %s (%d)\n", getWiFiStatusString(WiFi.status()).c_str(), WiFi.status());
+  }
+  
+  // Motor Control Status
+  Serial.println("--- Motor Control ---");
+  Serial.printf("Protocol: %s\n", protocol.c_str());
+  Serial.printf("GPIO Pin: %d\n", escPin);
+  Serial.printf("Armed: %s\n", escArmed ? "YES" : "NO");
+  Serial.printf("Throttle: %d", throttleValue);
+  if (protocol == "PWM") Serial.println(" μs");
+  else Serial.println(" (raw)");
+  Serial.printf("Direction: %s\n", direction.c_str());
+  Serial.printf("Direction Control: %s\n", directionSupported ? "Supported" : "Not Supported");
+  
+  // System Health
+  Serial.println("--- System Health ---");
+  Serial.printf("Free Heap: %d bytes\n", ESP.getFreeHeap());
+  Serial.printf("Heap Size: %d bytes\n", ESP.getHeapSize());
+  Serial.printf("CPU Frequency: %d MHz\n", ESP.getCpuFreqMHz());
+  Serial.printf("Flash Size: %d bytes\n", ESP.getFlashChipSize());
+  Serial.printf("Sketch Size: %d bytes\n", ESP.getSketchSize());
+  
+  Serial.println("========================\n");
+}
 
 // =====================================================================================
 // MAIN SYSTEM FUNCTIONS - Setup and primary control loop
@@ -211,26 +294,66 @@ void setup() {
   digitalWrite(escPin, LOW);
   Serial.printf("✓ ESC pin GPIO%d configured as output (LOW state)\n", escPin);
   
-  // Establish WiFi connection
-  Serial.printf("Connecting to WiFi network: %s\n", ssid);
-  WiFi.begin(ssid, password);
+  // Establish WiFi connection with detailed debugging
+  Serial.println("\n--- WiFi Connection Debug Info ---");
+  Serial.printf("SSID: %s\n", ssid);
+  Serial.printf("MAC Address: %s\n", WiFi.macAddress().c_str());
+  Serial.printf("WiFi Mode: Station (STA)\n");
   
-  // Wait for WiFi connection with timeout protection
+  WiFi.mode(WIFI_STA);  // Explicitly set station mode
+  WiFi.begin(ssid, password);
+  Serial.printf("Connecting to WiFi network: %s\n", ssid);
+  
+  // Wait for WiFi connection with detailed status reporting
   int connectionAttempts = 0;
   while (WiFi.status() != WL_CONNECTED && connectionAttempts < 30) {
     delay(1000);
     connectionAttempts++;
-    Serial.printf("Connecting... attempt %d/30\n", connectionAttempts);
+    
+    // Detailed status reporting
+    String status = getWiFiStatusString(WiFi.status());
+    Serial.printf("Attempt %d/30 - Status: %s (%d)\n", 
+                  connectionAttempts, status.c_str(), WiFi.status());
+    
+    // Additional debug info every 5 attempts
+    if (connectionAttempts % 5 == 0) {
+      Serial.printf("  → RSSI: %d dBm\n", WiFi.RSSI());
+      Serial.printf("  → Free Heap: %d bytes\n", ESP.getFreeHeap());
+    }
   }
   
-  // Check connection status
+  // Comprehensive connection status report
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("✓ WiFi connected successfully!");
-    Serial.printf("✓ IP address: %s\n", WiFi.localIP().toString().c_str());
-    Serial.printf("✓ Access web interface at: http://%s\n", WiFi.localIP().toString().c_str());
+    Serial.println("\n✓ WiFi Connection Successful!");
+    Serial.println("--- Network Configuration ---");
+    Serial.printf("✓ SSID: %s\n", WiFi.SSID().c_str());
+    Serial.printf("✓ IP Address: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("✓ Subnet Mask: %s\n", WiFi.subnetMask().toString().c_str());
+    Serial.printf("✓ Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+    Serial.printf("✓ DNS Server: %s\n", WiFi.dnsIP().toString().c_str());
+    Serial.printf("✓ MAC Address: %s\n", WiFi.macAddress().c_str());
+    Serial.printf("✓ Signal Strength (RSSI): %d dBm\n", WiFi.RSSI());
+    Serial.printf("✓ Channel: %d\n", WiFi.channel());
+    Serial.printf("✓ Connection Time: %d seconds\n", connectionAttempts);
+    Serial.println("--- Access Information ---");
+    Serial.printf("🌐 Web Interface: http://%s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("📱 Mobile Access: http://%s\n", WiFi.localIP().toString().c_str());
+    Serial.println("--------------------------------\n");
   } else {
-    Serial.println("✗ WiFi connection failed!");
-    Serial.println("Check WiFi credentials and network availability");
+    Serial.println("\n✗ WiFi Connection Failed!");
+    Serial.println("--- Connection Failure Debug ---");
+    String status = getWiFiStatusString(WiFi.status());
+    Serial.printf("✗ Final Status: %s (%d)\n", status.c_str(), WiFi.status());
+    Serial.printf("✗ Attempts Made: %d/30\n", connectionAttempts);
+    Serial.printf("✗ SSID Used: %s\n", ssid);
+    Serial.printf("✗ MAC Address: %s\n", WiFi.macAddress().c_str());
+    Serial.println("--- Troubleshooting Steps ---");
+    Serial.println("1. Verify SSID and password in wifi_config.h");
+    Serial.println("2. Check if network is 2.4GHz (ESP32 doesn't support 5GHz)");
+    Serial.println("3. Ensure network is within range");
+    Serial.println("4. Check if MAC filtering is enabled on router");
+    Serial.println("5. Try restarting the ESP32");
+    Serial.println("-------------------------------");
     return;
   }
   
@@ -250,14 +373,36 @@ void setup() {
  * Executes continuously after setup() completes. Handles:
  * - Web server client requests (HTTP API calls)
  * - ESC signal generation based on current protocol
+ * - WiFi connection monitoring and status reporting
  * - Maintains 50Hz update rate for consistent motor control
  * 
  * Loop timing: 20ms cycle (50Hz) - standard for ESC control
  */
 void loop() {
+  unsigned long currentTime = millis();
+  
   // Process incoming HTTP requests from web interface
   // This handles all API endpoints (/api/status, /api/throttle, etc.)
   server.handleClient();
+  
+  // Monitor WiFi connection status
+  if (currentTime - lastWiFiCheck >= WIFI_CHECK_INTERVAL) {
+    lastWiFiCheck = currentTime;
+    
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("⚠️  WiFi connection lost! Attempting reconnection...");
+      Serial.printf("Status: %s (%d)\n", getWiFiStatusString(WiFi.status()).c_str(), WiFi.status());
+      
+      // Attempt to reconnect
+      WiFi.reconnect();
+    }
+  }
+  
+  // Periodic status reporting
+  if (currentTime - lastStatusReport >= STATUS_INTERVAL) {
+    lastStatusReport = currentTime;
+    printSystemStatus();
+  }
   
   // Generate ESC control signals only when system is armed and throttle > 0
   // Safety feature prevents accidental motor activation
@@ -416,29 +561,49 @@ void handleSetConfig() {
  * Value is automatically constrained to valid range for active protocol
  */
 void handleSetThrottle() {
+  String clientIP = server.client().remoteIP().toString();
+  Serial.printf("📡 [%s] API: Set Throttle Request\n", clientIP.c_str());
+  
   if (server.hasArg("plain")) {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
     
     if (doc.containsKey("value")) {
-      int value = doc["value"];
+      int requestedValue = doc["value"];
+      int oldThrottle = throttleValue;
       
       if (protocol == "PWM") {
         // PWM protocol: 1000-2000 microseconds pulse width
         // 1000μs = minimum throttle, 2000μs = maximum throttle
-        throttleValue = constrain(value, 1000, 2000);
-        Serial.printf("PWM throttle set to %d μs\n", throttleValue);
+        throttleValue = constrain(requestedValue, 1000, 2000);
+        Serial.printf("✓ PWM throttle: %d → %d μs", oldThrottle, throttleValue);
+        if (requestedValue != throttleValue) {
+          Serial.printf(" (constrained from %d)", requestedValue);
+        }
+        Serial.println();
       } else {
         // DShot protocol: 0-2047 raw values
         // 0-47: Special commands (motor stop, direction, etc.)
         // 48-2047: Throttle values (48=minimum, 2047=maximum)
-        throttleValue = constrain(value, 0, 2047);
-        Serial.printf("DShot throttle set to %d\n", throttleValue);
+        throttleValue = constrain(requestedValue, 0, 2047);
+        Serial.printf("✓ DShot throttle: %d → %d", oldThrottle, throttleValue);
+        if (requestedValue != throttleValue) {
+          Serial.printf(" (constrained from %d)", requestedValue);
+        }
+        Serial.println();
+      }
+      
+      // Safety check
+      if (escArmed && throttleValue > 0) {
+        Serial.printf("⚡ Motor active - %s signal being generated\n", protocol.c_str());
+      } else if (!escArmed) {
+        Serial.println("🔒 ESC disarmed - throttle updated but no signal output");
       }
     }
     
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
+    Serial.printf("✗ [%s] No data in throttle request\n", clientIP.c_str());
     server.send(400, "application/json", "{\"error\":\"No data received\"}");
   }
 }
@@ -455,6 +620,9 @@ void handleSetThrottle() {
  * SAFETY: Motor can only operate when armed
  */
 void handleArm() {
+  String clientIP = server.client().remoteIP().toString();
+  Serial.printf("🔓 [%s] API: ARM ESC Request\n", clientIP.c_str());
+  
   escArmed = true;
   
   // Set protocol-appropriate idle throttle values
@@ -464,8 +632,15 @@ void handleArm() {
     throttleValue = 48;    // DShot idle: 48 (above command range 0-47)
   }
   
-  Serial.printf("ESC ARMED - Protocol: %s, Idle throttle: %d\n", 
-                protocol.c_str(), throttleValue);
+  Serial.println("⚠️  === ESC ARMED - MOTOR CAN NOW OPERATE ===");
+  Serial.printf("✓ Protocol: %s\n", protocol.c_str());
+  Serial.printf("✓ Idle throttle: %d %s\n", throttleValue, 
+                protocol == "PWM" ? "μs" : "(raw)");
+  Serial.printf("✓ GPIO Pin: %d\n", escPin);
+  Serial.printf("✓ Direction: %s\n", direction.c_str());
+  Serial.println("⚠️  ENSURE MOTOR IS SECURE BEFORE TESTING!");
+  Serial.println("============================================");
+  
   server.send(200, "application/json", "{\"status\":\"armed\"}");
 }
 
@@ -480,11 +655,19 @@ void handleArm() {
  * SAFETY: Always disarm when not actively testing
  */
 void handleDisarm() {
+  String clientIP = server.client().remoteIP().toString();
+  Serial.printf("🔒 [%s] API: DISARM ESC Request\n", clientIP.c_str());
+  
   escArmed = false;              // Disable motor control
   throttleValue = 0;             // Zero throttle
   digitalWrite(escPin, LOW);     // Force pin LOW (no output signal)
   
-  Serial.println("ESC DISARMED - Motor control disabled");
+  Serial.println("✅ === ESC DISARMED - MOTOR CONTROL DISABLED ===");
+  Serial.println("✓ Throttle set to zero");
+  Serial.printf("✓ GPIO%d forced LOW\n", escPin);
+  Serial.println("✅ System in safe state");
+  Serial.println("===============================================");
+  
   server.send(200, "application/json", "{\"status\":\"disarmed\"}");
 }
 
